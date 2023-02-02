@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 import ws from 'ws'
+import cors from 'cors'
 import http from 'http'
 import * as map from 'lib0/map'
+import express from 'express'
 
 const wsReadyStateConnecting = 0
 const wsReadyStateOpen = 1
@@ -11,7 +13,7 @@ const wsReadyStateClosed = 3 // eslint-disable-line
 
 const pingTimeout = 30000
 
-const port = process.env.PORT || 4444
+const port = process.env.PORT || 4000
 // @ts-ignore
 const wss = new ws.Server({ noServer: true })
 
@@ -19,6 +21,13 @@ const server = http.createServer((request, response) => {
   response.writeHead(200, { 'Content-Type': 'text/plain' })
   response.end('okay')
 })
+
+const app = express()
+
+app.use(cors({
+  origin: 'https://drawingduo.site',
+  credentials: true
+}))
 
 /**
  * Map froms topic-name to set of subscribed clients.
@@ -46,6 +55,7 @@ const send = (conn, message) => {
  * @param {any} conn
  */
 const onconnection = conn => {
+  // console.log(conn);
   /**
    * @type {Set<string>}
    */
@@ -81,6 +91,9 @@ const onconnection = conn => {
     closed = true
   })
   conn.on('message', /** @param {object} message */ message => {
+    console.log('***- ' + message + ' -***');
+    console.log('');
+    console.log('');
     if (typeof message === 'string') {
       message = JSON.parse(message)
     }
@@ -90,8 +103,9 @@ const onconnection = conn => {
           /** @type {Array<string>} */ (message.topics || []).forEach(topicName => {
             if (typeof topicName === 'string') {
               // add conn to topic
-              const topic = map.setIfUndefined(topics, topicName, () => new Set())
+              const topic = map.setIfUndefined(topics, topicName, () => new Set())    // topics안에 topicName에 대한 value가 없으면 새로운 set 추가, 있으면 topicName에 해당하는 value
               topic.add(conn)
+              // console.log('##----- ', topic, ' -----##');
               // add topic to conn
               subscribedTopics.add(topicName)
             }
@@ -129,6 +143,19 @@ server.on('upgrade', (request, socket, head) => {
    * @param {any} ws
    */
   const handleAuth = ws => {
+    // if (request.headers.origin) {
+    //   const origin = request.headers.origin
+    //   // check if origin is allowed
+    //   // if so, set headers
+    //   socket.setTimeout(0)
+    //   const headers = [
+    //     'HTTP/1.1 101 Web Socket Protocol Handshake',
+    //     'Upgrade: WebSocket',
+    //     'Connection: Upgrade',
+    //     `Access-Control-Allow-Origin: ${origin}`,
+    //     'Access-Control-Allow-Credentials: true',
+    //   ]
+    // }
     wss.emit('connection', ws, request)
   }
   wss.handleUpgrade(request, socket, head, handleAuth)
